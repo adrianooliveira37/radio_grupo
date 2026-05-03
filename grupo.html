@@ -227,11 +227,28 @@ const status = document.getElementById('status');
 
 let isTalking = false;
 
-btn.addEventListener('touchstart', startTalk);
-btn.addEventListener('mousedown', startTalk);
+btn.addEventListener('click', toggleTalk);
 
-btn.addEventListener('touchend', stopTalk);
-btn.addEventListener('mouseup', stopTalk);
+function toggleTalk() {
+  if (!localStream) return;
+
+  isTalking = !isTalking;
+
+  localStream.getAudioTracks()[0].enabled = isTalking;
+
+  if (isTalking) {
+    btn.classList.add('active');
+    status.innerText = 'Transmitindo...';
+
+    socket.emit('talking_state', { isTalking: true });
+    ligarParaTodos();
+  } else {
+    btn.classList.remove('active');
+    status.innerText = 'Microfone desligado';
+
+    socket.emit('talking_state', { isTalking: false });
+  }
+}
 
 function startTalk() {
   if (!localStream) return;
