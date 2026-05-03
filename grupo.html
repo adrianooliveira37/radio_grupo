@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sala de Voz</title>
-  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     body {
@@ -97,7 +97,6 @@
   <div id="audios-container"></div>
 
   <script>
-    // URL do seu backend Node.js
     const BACKEND_URL = 'https://server-grupo.onrender.com';
 
     const name = sessionStorage.getItem('radio_name');
@@ -110,19 +109,15 @@
     document.getElementById('txt-name').innerText = name;
     document.getElementById('txt-room').innerText = room;
 
-    // Conecta ao Socket.io do backend externo
     const socket = io(BACKEND_URL);
     let peer;
     let localStream;
     let myPeerId = null;
 
-    // Configura o PeerJS apontando explicitamente para o Node.js
-    peer = new Peer(undefined, {
-      host: 'localhost',
-      port: 3000,
-      path: '/peerjs',
-      secure: false
-    });
+    // CORREÇÃO 2: Se você quer usar o servidor nativo do PeerJS (Gratuito e sem lag)
+    // Deixe vazio: new Peer()
+    // Se o seu backend no Render tiver o PeerJS Server rodando junto, mude para os dados do Render.
+    peer = new Peer(); 
 
     peer.on('open', (id) => {
       myPeerId = id;
@@ -137,7 +132,8 @@
         console.log('Microfone pronto!');
 
         peer.on('call', (call) => {
-          call.answer();
+          // CORREÇÃO 3: É necessário passar o stream local ao atender para a conexão WebRTC se completar
+          call.answer(localStream);
           call.on('stream', (remoteStream) => {
             tocarAudio(call.peer, remoteStream);
           });
@@ -185,14 +181,17 @@
     });
 
     function ligarParaTodos() {
-      socket.once('presence', (users) => {
-        users.forEach(u => {
-          if (u.peerId !== myPeerId) {
-            console.log(`Ligando para ${u.name}`);
-            peer.call(u.peerId, localStream);
-          }
+      // Pequeno timeout para garantir que o estado de áudio foi ativado antes de ligar
+      setTimeout(() => {
+        socket.emit('request_users', (users) => {
+          users.forEach(u => {
+            if (u.peerId !== myPeerId) {
+              console.log(`Ligando para ${u.name}`);
+              peer.call(u.peerId, localStream);
+            }
+          });
         });
-      });
+      }, 100);
     }
 
     function tocarAudio(peerId, stream) {
