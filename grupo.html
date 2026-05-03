@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fênix PTT3</title>
+<title>Fênix PTT4</title>
 
 <meta http-equiv="Content-Security-Policy"
 content="default-src 'self' https://server-grupo.onrender.com;
@@ -24,6 +24,7 @@ body {
   color: white;
 }
 
+/* HEADER */
 .header {
   position: fixed;
   top: 0;
@@ -44,8 +45,27 @@ body {
   border-radius: 6px;
 }
 
+/* INDICADOR */
+.talking-indicator {
+  position: fixed;
+  top: 50px;
+  width: 100%;
+  text-align: center;
+  background: #111;
+  padding: 8px;
+  font-size: 14px;
+  z-index: 9;
+  border-bottom: 1px solid #222;
+}
+
+.talking-indicator.active {
+  background: #003d25;
+  color: #00ff88;
+}
+
+/* MAIN */
 .main {
-  padding: 70px 12px;
+  padding: 90px 12px;
 }
 
 .card {
@@ -55,6 +75,7 @@ body {
   margin-bottom: 12px;
 }
 
+/* PTT */
 .ptt-container {
   display: flex;
   justify-content: center;
@@ -81,6 +102,7 @@ body {
   margin-top: 10px;
 }
 
+/* MODAL */
 .users-modal {
   position: fixed;
   top: 0;
@@ -120,11 +142,14 @@ body {
 
 <div class="header">
   <span id="txt-room">Sala</span>
-
   <div>
     <button id="btn-users" class="btn">👥 <span id="count-users">0</span></button>
     <button onclick="sair()" class="btn">Sair</button>
   </div>
+</div>
+
+<div id="talking-indicator" class="talking-indicator">
+  Ninguém falando
 </div>
 
 <div class="main">
@@ -170,7 +195,7 @@ let peer;
 let localStream;
 let myPeerId;
 
-// 🔥 fallback local
+// fallback
 let falandoAgora = new Set();
 
 /* PEER */
@@ -198,31 +223,37 @@ navigator.mediaDevices.getUserMedia({ audio: true })
   });
 });
 
-/* PRESENCE (CORRIGIDO) */
+/* PRESENCE */
 socket.on('presence', users => {
   document.getElementById('count-users').innerText = users.length;
+
+  const indicator = document.getElementById('talking-indicator');
+
+  const falando = users.filter(u => u.isTalking || falandoAgora.has(u.peerId));
+
+  if (falando.length > 0) {
+    indicator.classList.add('active');
+    indicator.innerText = '🎤 ' + falando.map(u => u.name).join(', ');
+  } else {
+    indicator.classList.remove('active');
+    indicator.innerText = 'Ninguém falando';
+  }
 
   const list = document.getElementById('users-list');
   list.innerHTML = '';
 
-  const ordenados = users.sort((a, b) => {
-    const aTalk = a.isTalking || falandoAgora.has(a.peerId);
-    const bTalk = b.isTalking || falandoAgora.has(b.peerId);
-    return bTalk - aTalk;
-  });
-
-  ordenados.forEach(u => {
+  users.forEach(u => {
     const isTalking = u.isTalking || falandoAgora.has(u.peerId);
 
     const div = document.createElement('div');
     div.className = 'user-item ' + (isTalking ? 'talking' : '');
-    div.innerText = u.name + (isTalking ? ' 🎤 Falando' : ' 🤫');
+    div.innerText = u.name + (isTalking ? ' 🎤' : '');
 
     list.appendChild(div);
   });
 });
 
-/* PTT CLICK */
+/* PTT */
 const btn = document.getElementById('btn-falar');
 const status = document.getElementById('status');
 
@@ -275,7 +306,6 @@ function tocarAudio(id, stream){
 
   a.srcObject = stream;
 
-  // fallback visual
   falandoAgora.add(id);
 
   a.onended = () => {
