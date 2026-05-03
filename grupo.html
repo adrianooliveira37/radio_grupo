@@ -24,7 +24,6 @@ body {
   color: white;
 }
 
-/* HEADER */
 .header {
   position: fixed;
   top: 0;
@@ -45,12 +44,10 @@ body {
   border-radius: 6px;
 }
 
-/* MAIN */
 .main {
   padding: 70px 12px;
 }
 
-/* CARD */
 .card {
   background: #1a1a1f;
   border-radius: 12px;
@@ -58,11 +55,9 @@ body {
   margin-bottom: 12px;
 }
 
-/* PTT */
 .ptt-container {
   display: flex;
   justify-content: center;
-  margin-top: 10px;
 }
 
 .btn-falar {
@@ -86,7 +81,6 @@ body {
   margin-top: 10px;
 }
 
-/* MODAL */
 .users-modal {
   position: fixed;
   top: 0;
@@ -95,7 +89,6 @@ body {
   height: 100%;
   background: rgba(0,0,0,0.7);
   display: none;
-  z-index: 20;
 }
 
 .users-content {
@@ -114,7 +107,6 @@ body {
   margin-bottom: 6px;
   background: #111;
   border-radius: 6px;
-  font-size: 14px;
 }
 
 .user-item.talking {
@@ -136,7 +128,6 @@ body {
 </div>
 
 <div class="main">
-
   <div class="card">
     Conectado como: <b id="txt-name"></b>
   </div>
@@ -147,10 +138,9 @@ body {
     </div>
     <div id="status" class="status">Microfone desligado</div>
   </div>
-
 </div>
 
-<!-- MODAL USUÁRIOS -->
+<!-- MODAL -->
 <div id="users-modal" class="users-modal">
   <div class="users-content">
     <div style="display:flex;justify-content:space-between;">
@@ -180,6 +170,9 @@ let peer;
 let localStream;
 let myPeerId;
 
+// 🔥 CONTROLE LOCAL DE QUEM ESTÁ FALANDO
+let falandoAgora = new Set();
+
 /* PEER */
 peer = new Peer(undefined, {
   host: 'server-grupo.onrender.com',
@@ -203,34 +196,27 @@ navigator.mediaDevices.getUserMedia({ audio: true })
     call.answer(localStream);
     call.on('stream', s => tocarAudio(call.peer, s));
   });
-})
-.catch(() => alert('Permita o uso do microfone'));
+});
 
-/* USUÁRIOS */
+/* PRESENÇA */
 socket.on('presence', users => {
   document.getElementById('count-users').innerText = users.length;
 
   const list = document.getElementById('users-list');
   list.innerHTML = '';
 
-  const ordenados = users.sort((a,b)=>b.isTalking - a.isTalking);
+  users.forEach(u => {
+    const isTalking = falandoAgora.has(u.peerId);
 
-  ordenados.slice(0,20).forEach(u=>{
     const div = document.createElement('div');
-    div.className = 'user-item ' + (u.isTalking ? 'talking' : '');
-    div.innerText = u.name + (u.isTalking ? ' 🎤' : '');
+    div.className = 'user-item ' + (isTalking ? 'talking' : '');
+    div.innerText = u.name + (isTalking ? ' 🎤 Falando' : '');
+
     list.appendChild(div);
   });
-
-  if (users.length > 20) {
-    const more = document.createElement('div');
-    more.className = 'user-item';
-    more.innerText = '+' + (users.length - 20) + ' participantes';
-    list.appendChild(more);
-  }
 });
 
-/* BOTÃO PTT (CLICK LIGA/DESLIGA) */
+/* PTT CLICK */
 const btn = document.getElementById('btn-falar');
 const status = document.getElementById('status');
 
@@ -244,12 +230,16 @@ btn.onclick = () => {
   localStream.getAudioTracks()[0].enabled = isTalking;
 
   if (isTalking) {
+    falandoAgora.add(myPeerId);
+
     btn.classList.add('active');
     status.innerText = 'Transmitindo...';
 
     socket.emit('talking_state', { isTalking: true });
     ligar();
   } else {
+    falandoAgora.delete(myPeerId);
+
     btn.classList.remove('active');
     status.innerText = 'Microfone desligado';
 
@@ -275,33 +265,19 @@ function tocarAudio(id, stream){
     a = document.createElement('audio');
     a.id = 'a'+id;
     a.autoplay = true;
-    a.setAttribute('playsinline', 'true');
     document.body.appendChild(a);
   }
 
   a.srcObject = stream;
 
-  a.play().catch(() => {
-    if (!document.getElementById('btn-unmute')) {
-      const b = document.createElement('button');
-      b.id = 'btn-unmute';
-      b.innerText = "Ativar áudio";
-      b.style.position = "fixed";
-      b.style.bottom = "20px";
-      b.style.left = "50%";
-      b.style.transform = "translateX(-50%)";
-      b.style.padding = "10px";
-      b.style.background = "#00ff88";
-      b.style.border = "none";
+  // 🔥 MARCA COMO FALANDO
+  falandoAgora.add(id);
 
-      b.onclick = () => {
-        document.querySelectorAll('audio').forEach(a => a.play());
-        b.remove();
-      };
+  a.onended = () => {
+    falandoAgora.delete(id);
+  };
 
-      document.body.appendChild(b);
-    }
-  });
+  a.play().catch(()=>{});
 }
 
 /* MODAL */
