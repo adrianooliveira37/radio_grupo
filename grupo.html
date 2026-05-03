@@ -1,257 +1,307 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sala de Voz2</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fênix PTT</title>
 
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://server-grupo.onrender.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.socket.io https://unpkg.com; connect-src 'self' ws: wss: https://server-grupo.onrender.com wss://server-grupo.onrender.com;">
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
-  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<style>
+* {
+  box-sizing: border-box;
+}
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #121214;
-      color: #e1e1e6;
-      padding: 20px;
-      margin: 0;
-    }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #29292e;
-      padding-bottom: 10px;
-    }
-    .btn-sair {
-      background-color: #e04c4c;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .container {
-      display: grid;
-      grid-template-columns: 1fr 2fr;
-      gap: 20px;
-      margin-top: 20px;
-    }
-    .card {
-      background: #202024;
-      padding: 20px;
-      border-radius: 8px;
-    }
-    .user-item {
-      padding: 10px;
-      background: #121214;
-      margin-bottom: 8px;
-      border-radius: 4px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-left: 4px solid #29292e;
-    }
-    .user-item.talking {
-      border-left-color: #04d361;
-      background: #1a2e22;
-    }
-    .btn-falar {
-      width: 100%;
-      padding: 20px;
-      font-size: 1.2rem;
-      background-color: #29292e;
-      color: white;
-      border: 2px solid #323238;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    .btn-falar.active {
-      background-color: #04d361;
-      border-color: #00ff62;
-    }
-    .btn-desbloquear-audio {
-      position: fixed;
-      top: 15px;
-      right: 120px;
-      z-index: 9999;
-      padding: 10px;
-      background-color: #04d361;
-      color: #121214;
-      border: none;
-      border-radius: 4px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-  </style>
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0d0d0f;
+  color: #fff;
+}
+
+/* HEADER FIXO */
+.header {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  background: #16161a;
+  padding: 12px 16px;
+  border-bottom: 1px solid #222;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+}
+
+.header h2 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.header span {
+  color: #00ff88;
+}
+
+.btn-sair {
+  background: #ff4d4d;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: white;
+}
+
+/* CONTEÚDO */
+.main {
+  padding: 70px 12px 20px;
+}
+
+/* CARD */
+.card {
+  background: #1a1a1f;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+/* LISTA USUÁRIOS */
+.user-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: #111;
+  font-size: 14px;
+}
+
+.user-item.talking {
+  background: #002b1a;
+  border-left: 4px solid #00ff88;
+}
+
+/* BOTÃO PTT (DESTAQUE) */
+.ptt-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.btn-falar {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  border: none;
+  background: #222;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  box-shadow: 0 0 0 6px #111;
+  transition: 0.2s;
+}
+
+.btn-falar:active {
+  transform: scale(0.95);
+}
+
+.btn-falar.active {
+  background: #00ff88;
+  color: #000;
+  box-shadow: 0 0 20px #00ff88;
+}
+
+/* TEXTO STATUS */
+.status {
+  text-align: center;
+  margin-top: 10px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* BOTÃO DESBLOQUEIO AUDIO */
+.btn-desbloquear-audio {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #00ff88;
+  color: black;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+}
+</style>
 </head>
+
 <body>
 
-  <div class="header">
-    <div>
-      <h2 style="margin: 0;">Grupo: <span id="txt-room" style="color: #04d361;">...</span></h2>
-      <p style="margin: 5px 0 0 0;">Conectado como: <b id="txt-name">...</b></p>
-    </div>
-    <button class="btn-sair" onclick="sair()">Sair</button>
+<div class="header">
+  <h2><span id="txt-room">Sala</span></h2>
+  <button class="btn-sair" onclick="sair()">Sair</button>
+</div>
+
+<div class="main">
+
+  <div class="card">
+    <div><b id="txt-name"></b></div>
   </div>
 
-  <div class="container">
-    <div class="card">
-      <h3>Membros no Grupo</h3>
-      <div id="users-list">Carregando membros...</div>
-    </div>
-
-    <div class="card" style="display: flex; flex-direction: column; justify-content: center;">
-      <h3>Controle de Voz</h3>
-      <p>Clique uma vez no botão para ativar o microfone e transmitir para o grupo.</p>
-      <button id="btn-falar" class="btn-falar">🔴 microfone desligado</button>
-    </div>
+  <div class="card">
+    <h3 style="margin-top:0;">Participantes</h3>
+    <div id="users-list"></div>
   </div>
 
-  <div id="audios-container"></div>
+  <div class="card">
+    <div class="ptt-container">
+      <button id="btn-falar" class="btn-falar">PTT</button>
+    </div>
+    <div id="status" class="status">Microfone desligado</div>
+  </div>
 
-  <script>
-    const BACKEND_URL = 'https://server-grupo.onrender.com';
+</div>
 
-    const name = sessionStorage.getItem('radio_name');
-    const room = sessionStorage.getItem('radio_room');
+<div id="audios-container"></div>
 
-    if (!name || !room) {
-      window.location.href = 'index.html';
-    }
+<script>
+const BACKEND_URL = 'https://server-grupo.onrender.com';
 
-    document.getElementById('txt-name').innerText = name;
-    document.getElementById('txt-room').innerText = room;
+const name = sessionStorage.getItem('radio_name');
+const room = sessionStorage.getItem('radio_room');
 
-    const socket = io(BACKEND_URL);
-    let peer;
-    let localStream;
-    let myPeerId = null;
+if (!name || !room) {
+  window.location.href = 'index.html';
+}
 
-    // Conectando ao Peer Server hospedado no seu próprio Render
-    peer = new Peer(undefined, {
-      host: 'server-grupo.onrender.com',
-      port: 443,
-      path: '/peerjs',
-      secure: true
+document.getElementById('txt-name').innerText = name;
+document.getElementById('txt-room').innerText = room;
+
+const socket = io(BACKEND_URL);
+
+let peer;
+let localStream;
+let myPeerId = null;
+
+peer = new Peer(undefined, {
+  host: 'server-grupo.onrender.com',
+  port: 443,
+  path: '/peerjs',
+  secure: true
+});
+
+peer.on('open', (id) => {
+  myPeerId = id;
+  socket.emit('register', { name, room, peerId: id });
+});
+
+navigator.mediaDevices.getUserMedia({ audio: true })
+.then(stream => {
+  localStream = stream;
+  localStream.getAudioTracks()[0].enabled = false;
+
+  peer.on('call', call => {
+    call.answer(localStream);
+    call.on('stream', remoteStream => {
+      tocarAudio(call.peer, remoteStream);
     });
+  });
+});
 
-    peer.on('open', (id) => {
-      myPeerId = id;
-      console.log('Meu ID PeerJS:', myPeerId);
-      socket.emit('register', { name, room, peerId: id });
-    });
+socket.on('presence', users => {
+  const list = document.getElementById('users-list');
+  list.innerHTML = '';
 
-    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-      .then(stream => {
-        localStream = stream;
-        localStream.getAudioTracks()[0].enabled = false;
-        console.log('Microfone pronto!');
+  users.forEach(u => {
+    const div = document.createElement('div');
+    div.className = 'user-item ' + (u.isTalking ? 'talking' : '');
+    div.innerHTML = `
+      <span>${u.name}</span>
+      <span>${u.isTalking ? '🎤' : '—'}</span>
+    `;
+    list.appendChild(div);
+  });
+});
 
-        peer.on('call', (call) => {
-          console.log(`Recebendo chamada de: ${call.peer}`);
-          // Responde enviando seu próprio stream local para fechar a conexão de voz
-          call.answer(localStream);
-          
-          call.on('stream', (remoteStream) => {
-            tocarAudio(call.peer, remoteStream);
-          });
-        });
-      })
-      .catch(err => {
-        alert('Por favor, permita o acesso ao microfone.');
-        console.error(err);
-      });
+const btn = document.getElementById('btn-falar');
+const status = document.getElementById('status');
 
-    socket.on('presence', (users) => {
-      const listContainer = document.getElementById('users-list');
-      listContainer.innerHTML = '';
+let isTalking = false;
 
-      users.forEach(u => {
-        const div = document.createElement('div');
-        div.className = `user-item ${u.isTalking ? 'talking' : ''}`;
-        div.innerHTML = `
-          <span><b>${u.name}</b> ${u.peerId === myPeerId ? '(Você)' : ''}</span>
-          <span>${u.isTalking ? '🎤 Falando...' : '🤫 Silêncio'}</span>
-        `;
-        listContainer.appendChild(div);
-      });
-    });
+btn.addEventListener('touchstart', startTalk);
+btn.addEventListener('mousedown', startTalk);
 
-    const btnFalar = document.getElementById('btn-falar');
-    let isTalking = false;
+btn.addEventListener('touchend', stopTalk);
+btn.addEventListener('mouseup', stopTalk);
 
-    btnFalar.addEventListener('click', () => {
-      if (!localStream) return;
-      isTalking = !isTalking;
+function startTalk() {
+  if (!localStream) return;
 
-      localStream.getAudioTracks()[0].enabled = isTalking;
+  isTalking = true;
+  localStream.getAudioTracks()[0].enabled = true;
 
-      if (isTalking) {
-        btnFalar.classList.add('active');
-        btnFalar.innerText = '🎤 transmitindo som...';
-        socket.emit('talking_state', { isTalking: true });
-        ligarParaTodos();
-      } else {
-        btnFalar.classList.remove('active');
-        btnFalar.innerText = '🔴 microfone desligado';
-        socket.emit('talking_state', { isTalking: false });
+  btn.classList.add('active');
+  status.innerText = 'Transmitindo...';
+
+  socket.emit('talking_state', { isTalking: true });
+  ligarParaTodos();
+}
+
+function stopTalk() {
+  if (!localStream) return;
+
+  isTalking = false;
+  localStream.getAudioTracks()[0].enabled = false;
+
+  btn.classList.remove('active');
+  status.innerText = 'Microfone desligado';
+
+  socket.emit('talking_state', { isTalking: false });
+}
+
+function ligarParaTodos() {
+  socket.emit('get_active_users', users => {
+    users.forEach(u => {
+      if (u.peerId !== myPeerId) {
+        peer.call(u.peerId, localStream);
       }
     });
+  });
+}
 
-    function ligarParaTodos() {
-      setTimeout(() => {
-        // Solicita a lista atualizada de usuários antes de fazer as ligações WebRTC
-        socket.emit('get_active_users', (users) => {
-          if (!users) return;
-          users.forEach(u => {
-            if (u.peerId !== myPeerId) {
-              console.log(`Ligando para ${u.name}`);
-              peer.call(u.peerId, localStream);
-            }
-          });
-        });
-      }, 100);
+function tocarAudio(peerId, stream) {
+  let audio = document.getElementById(`audio-${peerId}`);
+
+  if (!audio) {
+    audio = document.createElement('audio');
+    audio.id = `audio-${peerId}`;
+    audio.autoplay = true;
+    document.body.appendChild(audio);
+  }
+
+  audio.srcObject = stream;
+
+  audio.play().catch(() => {
+    if (!document.getElementById('btn-unmute')) {
+      const btn = document.createElement('button');
+      btn.id = 'btn-unmute';
+      btn.className = 'btn-desbloquear-audio';
+      btn.innerText = "Ativar áudio";
+
+      btn.onclick = () => {
+        document.querySelectorAll('audio').forEach(a => a.play());
+        btn.remove();
+      };
+
+      document.body.appendChild(btn);
     }
+  });
+}
 
-    function tocarAudio(peerId, stream) {
-      let audio = document.getElementById(`audio-${peerId}`);
-      if (!audio) {
-        audio = document.createElement('audio');
-        audio.id = `audio-${peerId}`;
-        audio.autoplay = true;
-        audio.setAttribute('playsinline', 'true');
-        document.getElementById('audios-container').appendChild(audio);
-      }
-      
-      audio.srcObject = stream;
+function sair() {
+  sessionStorage.clear();
+  window.location.href = 'index.html';
+}
+</script>
 
-      audio.play().catch(err => {
-        console.warn("Autoplay bloqueado pelo navegador.", err);
-        
-        if (!document.getElementById('btn-unmute')) {
-          const btnDesbloquear = document.createElement('button');
-          btnDesbloquear.id = 'btn-unmute';
-          btnDesbloquear.className = 'btn-desbloquear-audio';
-          btnDesbloquear.innerText = "Clique para ouvir os participantes";
-          
-          btnDesbloquear.onclick = () => {
-            document.querySelectorAll('audio').forEach(a => a.play());
-            btnDesbloquear.remove();
-          };
-          
-          document.body.appendChild(btnDesbloquear);
-        }
-      });
-    }
-
-    function sair() {
-      sessionStorage.clear();
-      window.location.href = 'index.html';
-    }
-  </script>
 </body>
 </html>
