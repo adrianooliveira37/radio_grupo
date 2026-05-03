@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fênix PTT v2</title>
+<title>Fênix PTT3</title>
 
 <meta http-equiv="Content-Security-Policy"
 content="default-src 'self' https://server-grupo.onrender.com;
@@ -170,7 +170,7 @@ let peer;
 let localStream;
 let myPeerId;
 
-// 🔥 CONTROLE LOCAL DE QUEM ESTÁ FALANDO
+// 🔥 fallback local
 let falandoAgora = new Set();
 
 /* PEER */
@@ -198,19 +198,25 @@ navigator.mediaDevices.getUserMedia({ audio: true })
   });
 });
 
-/* PRESENÇA */
+/* PRESENCE (CORRIGIDO) */
 socket.on('presence', users => {
   document.getElementById('count-users').innerText = users.length;
 
   const list = document.getElementById('users-list');
   list.innerHTML = '';
 
-  users.forEach(u => {
-    const isTalking = falandoAgora.has(u.peerId);
+  const ordenados = users.sort((a, b) => {
+    const aTalk = a.isTalking || falandoAgora.has(a.peerId);
+    const bTalk = b.isTalking || falandoAgora.has(b.peerId);
+    return bTalk - aTalk;
+  });
+
+  ordenados.forEach(u => {
+    const isTalking = u.isTalking || falandoAgora.has(u.peerId);
 
     const div = document.createElement('div');
     div.className = 'user-item ' + (isTalking ? 'talking' : '');
-    div.innerText = u.name + (isTalking ? ' 🎤 Falando' : '');
+    div.innerText = u.name + (isTalking ? ' 🎤 Falando' : ' 🤫');
 
     list.appendChild(div);
   });
@@ -226,7 +232,6 @@ btn.onclick = () => {
   if (!localStream) return;
 
   isTalking = !isTalking;
-
   localStream.getAudioTracks()[0].enabled = isTalking;
 
   if (isTalking) {
@@ -249,8 +254,8 @@ btn.onclick = () => {
 
 function ligar() {
   socket.emit('get_active_users', users => {
-    users.forEach(u=>{
-      if(u.peerId !== myPeerId){
+    users.forEach(u => {
+      if (u.peerId !== myPeerId) {
         peer.call(u.peerId, localStream);
       }
     });
@@ -270,7 +275,7 @@ function tocarAudio(id, stream){
 
   a.srcObject = stream;
 
-  // 🔥 MARCA COMO FALANDO
+  // fallback visual
   falandoAgora.add(id);
 
   a.onended = () => {
