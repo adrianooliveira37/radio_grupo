@@ -4,8 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sala de Voz</title>
+  
   <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -64,10 +66,12 @@
       border-radius: 8px;
       cursor: pointer;
       font-weight: bold;
+      transition: background-color 0.2s;
     }
     .btn-falar.active {
       background-color: #04d361;
       border-color: #00ff62;
+      color: #121214;
     }
   </style>
 </head>
@@ -89,7 +93,7 @@
 
     <div class="card" style="display: flex; flex-direction: column; justify-content: center;">
       <h3>Controle de Voz</h3>
-      <p>Clique uma vez no botão para ativar o microfone e transmitir para o grupo.</p>
+      <p>Clique no botão abaixo para ativar seu microfone e transmitir som.</p>
       <button id="btn-falar" class="btn-falar">🔴 microfone desligado</button>
     </div>
   </div>
@@ -114,10 +118,8 @@
     let localStream;
     let myPeerId = null;
 
-    // CORREÇÃO 2: Se você quer usar o servidor nativo do PeerJS (Gratuito e sem lag)
-    // Deixe vazio: new Peer()
-    // Se o seu backend no Render tiver o PeerJS Server rodando junto, mude para os dados do Render.
-    peer = new Peer(); 
+    // Inicializa o PeerJS usando a nuvem pública gratuita do PeerJS
+    peer = new Peer();
 
     peer.on('open', (id) => {
       myPeerId = id;
@@ -125,25 +127,31 @@
       socket.emit('register', { name, room, peerId: id });
     });
 
+    // Captura o microfone assim que entra na página
     navigator.mediaDevices.getUserMedia({ audio: true, video: false })
       .then(stream => {
         localStream = stream;
+        // Inicialmente mutado
         localStream.getAudioTracks()[0].enabled = false;
-        console.log('Microfone pronto!');
+        console.log('Microfone capturado com sucesso!');
 
+        // Ouvindo chamadas recebidas de outros membros
         peer.on('call', (call) => {
-          // CORREÇÃO 3: É necessário passar o stream local ao atender para a conexão WebRTC se completar
+          console.log(`Recebendo chamada de: ${call.peer}`);
+          // Responde enviando o stream local para fechar a conexão de duas vias
           call.answer(localStream);
+          
           call.on('stream', (remoteStream) => {
             tocarAudio(call.peer, remoteStream);
           });
         });
       })
       .catch(err => {
-        alert('Por favor, permita o acesso ao microfone.');
+        alert('Por favor, permita o acesso ao microfone nas configurações do seu navegador.');
         console.error(err);
       });
 
+    // Atualiza a lista de usuários online
     socket.on('presence', (users) => {
       const listContainer = document.getElementById('users-list');
       listContainer.innerHTML = '';
@@ -163,9 +171,12 @@
     let isTalking = false;
 
     btnFalar.addEventListener('click', () => {
-      if (!localStream) return;
-      isTalking = !isTalking;
+      if (!localStream) {
+        alert("Microfone ainda não carregado ou permissão negada.");
+        return;
+      }
 
+      isTalking = !isTalking;
       localStream.getAudioTracks()[0].enabled = isTalking;
 
       if (isTalking) {
@@ -181,12 +192,14 @@
     });
 
     function ligarParaTodos() {
-      // Pequeno timeout para garantir que o estado de áudio foi ativado antes de ligar
+      // Pequeno delay para garantir a ativação da track de áudio
       setTimeout(() => {
-        socket.emit('request_users', (users) => {
+        // Pede a lista atualizada de usuários via socket
+        socket.emit('get_active_users', (users) => {
+          if (!users) return;
           users.forEach(u => {
             if (u.peerId !== myPeerId) {
-              console.log(`Ligando para ${u.name}`);
+              console.log(`Ligando para o peer: ${u.name} (${u.peerId})`);
               peer.call(u.peerId, localStream);
             }
           });
@@ -200,9 +213,31 @@
         audio = document.createElement('audio');
         audio.id = `audio-${peerId}`;
         audio.autoplay = true;
+        audio.setAttribute('playsinline', 'true'); // Correção para mobile
         document.getElementById('audios-container').appendChild(audio);
       }
+      
       audio.srcObject = stream;
+
+      // Executa o áudio e captura o bloqueio de autoplay se houver
+      audio.play().catch(err => {
+        console.warn("O navegador bloqueou o áudio. Criando botão de desbloqueio.", err);
+        
+        // Se o navegador bloquear o som, criamos um botão para o usuário clicar uma vez
+        if (!document.getElementById('btn-unmute')) {
+          const btnDesbloquear = document.createElement('button');
+          btnDesbloquear.id = 'btn-unmute';
+          btnDesbloquear.innerText = "Clique para ouvir os participantes";
+          btnDesbloquear.style.cssText = "position:fixed; top:15px; right:120px; z-index:9999; padding: 10px; background: #04d361; color: #121214; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;";
+          
+          btnDesbloquear.onclick = () => {
+            document.querySelectorAll('audio').forEach(a => a.play());
+            btnDesbloquear.remove();
+          };
+          
+          document.body.appendChild(btnDesbloquear);
+        }
+      });
     }
 
     function sair() {
