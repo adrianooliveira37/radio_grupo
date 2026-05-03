@@ -1,147 +1,67 @@
 const express = require('express');
-const http = require('http');
-const path = require('path'); // <-- 1. IMPORTANTE: Adicionado para gerenciar caminhos
-const { ExpressPeerServer } = require('peer');
-const socketIO = require('socket.io');
-const cors = require('cors');
-
 const app = express();
-
-// Ativa o CORS (útil caso você ainda acesse de outras origens)
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST"]
-}));
-
-const server = http.createServer(app);
-
-// Configuração do CORS para o Socket.io
-const io = socketIO(server, {
+const http = require('http').createServer(app);
+const io = require('socket.io')(http, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
   }
 });
 
-// Configuração do servidor PeerJS integrado
-const peerServer = ExpressPeerServer(server, {
-  debug: true,
-  path: '/peerjs',
-  proxied: true
-});
-
-app.use(peerServer);
-
-// ==================== NOVAS ROTAS E CONFIGURAÇÕES DE ARQUIVOS ====================
-
-// 2. Configura o Express para entregar arquivos estáticos (CSS, JS, Imagens) da pasta raiz
-app.use(express.static(path.join(__dirname)));
-
-// 3. Rota principal: Entrega o index.html quando acessar http://localhost:3000/
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// 4. Rota do grupo: Entrega o grupo.html quando acessar http://localhost:3000/grupo.html
-app.get('/grupo.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'grupo.html'));
-});
-
-// =================================================================================
-
-// Estrutura de dados para guardar grupos e usuários
-let rooms = {};
+let connectedUsers = [];
 
 io.on('connection', (socket) => {
-  console.log('🟢 Novo cliente conectado ao Socket.io:', socket.id);
+  console.log(`Novo usuário conectado: ${socket.id}`);
 
-  // 1. Registro do usuário em uma sala/grupo específico
-  socket.on('register', (data) => {
-    const { room, peerId, name } = data;
-
-    if (!room || !peerId || !name) {
-      console.log('⚠️ Dados de registro inválidos:', data);
-      return;
-    }
-
+  // Registra o usuário na sala
+  socket.on('register', ({ name, room, peerId }) => {
     socket.join(room);
+    socket.userName = name;
+    socket.userRoom = room;
+    socket.peerId = peerId;
 
-    if (!rooms[room]) {
-      rooms[room] = {};
+    // Adiciona ou atualiza na lista
+    const existingIndex = connectedUsers.findIndex(u => u.peerId === peerId);
+    if (existingIndex !== -1) {
+      connectedUsers[existingIndex] = { name, room, peerId, isTalking: false };
+    } else {
+      connectedUsers.push({ name, room, peerId, isTalking: false });
     }
 
-    rooms[room][socket.id] = {
-      peerId: peerId,
-      name: name,
-      isTalking: false,
-      room: room
-    };
-
-    console.log(`👤 [${room}] Usuário registrado: ${name} (${peerId})`);
-    broadcastPresence(room);
+    enviarPresenca(room);
   });
 
-  // 2. Escuta o estado de fala e avisa o grupo correspondente
-  socket.on('talking_state', (data) => {
-    const userRoom = getUserRoom(socket.id);
-
-    if (userRoom && rooms[userRoom] && rooms[userRoom][socket.id]) {
-      rooms[userRoom][socket.id].isTalking = data.isTalking;
-      
-      socket.to(userRoom).emit('user_talking', {
-        peerId: rooms[userRoom][socket.id].peerId,
-        name: rooms[userRoom][socket.id].name,
-        isTalking: data.isTalking
-      });
-
-      broadcastPresence(userRoom);
+  // Escuta alteração do botão de falar
+  socket.on('talking_state', ({ isTalking }) => {
+    const user = connectedUsers.find(u => u.peerId === socket.peerId);
+    if (user) {
+      user.isTalking = isTalking;
+      enviarPresenca(socket.userRoom);
     }
   });
 
-  // 3. Desconexão
+  // Retorna a lista de usuários da sala quando alguém solicita ligações
+  socket.on('get_active_users', (callback) => {
+    const roomUsers = connectedUsers.filter(u => u.room === socket.userRoom);
+    callback(roomUsers);
+  });
+
+  // Quando alguém desconecta
   socket.on('disconnect', () => {
-    const userRoom = getUserRoom(socket.id);
-
-    if (userRoom && rooms[userRoom]) {
-      const user = rooms[userRoom][socket.id];
-      console.log(`🔴 Usuário saiu da sala [${userRoom}]: ${user.name}`);
-
-      if (user.isTalking) {
-        socket.to(userRoom).emit('user_talking', {
-          peerId: user.peerId,
-          name: user.name,
-          isTalking: false
-        });
-      }
-
-      delete rooms[userRoom][socket.id];
-
-      if (Object.keys(rooms[userRoom]).length === 0) {
-        delete rooms[userRoom];
-      } else {
-        broadcastPresence(userRoom);
-      }
+    console.log(`Usuário desconectado: ${socket.id}`);
+    connectedUsers = connectedUsers.filter(u => u.peerId !== socket.peerId);
+    if (socket.userRoom) {
+      enviarPresenca(socket.userRoom);
     }
   });
 
-  function broadcastPresence(room) {
-    if (rooms[room]) {
-      const userList = Object.values(rooms[room]);
-      io.to(room).emit('presence', userList);
-    }
-  }
-
-  function getUserRoom(socketId) {
-    for (const room in rooms) {
-      if (rooms[room][socketId]) {
-        return room;
-      }
-    }
-    return null;
+  function enviarPresenca(room) {
+    const roomUsers = connectedUsers.filter(u => u.room === room);
+    io.to(room).emit('presence', roomUsers);
   }
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+http.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
