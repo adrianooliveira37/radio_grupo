@@ -1,0 +1,15 @@
+{
+  "name": "radio-grupo-backend",
+  "version": "1.0.0",
+  "description": "Servidor de áudio e presença com suporte a grupos",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^4.19.2",
+    "peer": "^1.0.2",
+    "socket.io": "^4.7.5"
+  }
+}

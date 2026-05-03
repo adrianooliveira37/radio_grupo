@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rádio - Entrar no Grupo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #121214;
+      color: #e1e1e6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .login-container {
+      background: #202024;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      width: 100%;
+      max-width: 350px;
+      text-align: center;
+    }
+    h2 { margin-bottom: 1.5rem; color: #04d361; }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 1rem;
+      border: 1px solid #29292e;
+      background: #121214;
+      color: #fff;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #04d361;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    button:hover { background: #06b953; }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <h2>Rádio em Grupo</h2>
+    <input type="text" id="username" placeholder="Seu Nome" required>
+    <input type="text" id="room" placeholder="Nome do Grupo (ex: devs)" required>
+    <button onclick="entrarNoGrupo()">Entrar no Grupo</button>
+  </div>
+
+  <script>
+    function entrarNoGrupo() {
+      const name = document.getElementById('username').value.trim();
+      const room = document.getElementById('room').value.trim().toLowerCase();
+
+      if (!name || !room) {
+        alert('Por favor, preencha seu nome e o nome do grupo.');
+        return;
+      }
+
+      // Salva os dados na sessão do navegador
+      sessionStorage.setItem('radio_name', name);
+      sessionStorage.setItem('radio_room', room);
+
+      // Redireciona para a página do grupo
+      window.location.href = '/grupo.html';
+    }
+  </script>
+</body>
+</html>
